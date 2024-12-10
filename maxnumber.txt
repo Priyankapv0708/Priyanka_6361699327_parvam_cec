@@ -1,0 +1,29 @@
+#include <stdio.h>
+int main()
+{
+    int x=0,y=0;
+    printf("enter a number:");
+    scanf("%d",&x);
+    printf("enter second number:");
+    scanf("%d",&y);
+    printf("Address of x:%p",&x);
+    printf("Address of y:%p",&y);
+    int *p=&x,*q=&y;
+    if (*p>*q)
+    {
+        printf("max number is:%d",*p);
+        printf("Address:%p",p);
+    }
+    else
+    {
+        printf("max number is:%d",*q);
+        printf("Address:%p",q);
+    }
+    return 0;
+    }
+
+
+output:
+enter a number:2
+enter second number:5
+Address of x:0x7ffd96a7dbacAddress of y:0x7ffd96a7dba8max number is:5Address:0x7ffd96a7dba8

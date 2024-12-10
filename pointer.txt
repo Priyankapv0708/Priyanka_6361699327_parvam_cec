@@ -1,0 +1,21 @@
+#include <stdio.h>
+int main()
+{
+    int x=10;
+    int *p=&x;
+    printf("value of x:%d",x);
+    printf("\n address of x:%p",&x);
+    printf("\n pointer p:%d",*p);
+    printf("\n p:%p,p");
+    printf("\n address of p:%p",&p);
+    return 0;
+}
+
+
+
+output:
+value of x:10
+ address of x:0x7ffdb08804ec
+ pointer p:10
+ p:0x402032,p
+ address of p:0x7ffdb08804e0
