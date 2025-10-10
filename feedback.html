@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback form></title>
+</head>
+<body>
+    <h2>Website Feedback Form</h2>
+    <form action="/feedback" method="post">
+
+        <!--Name-->
+        <label for="name">Full Name:</label>
+        <input type="text" id="name" name="name" placeholder="Your name" required>
+        <br><br>
+
+        
+        <!--Email-->
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required>
+        <br><br>
+
+        
+        <!--Rating(Radio Buttons)-->
+        <label>Rate our websites:</label>
+        <input type="radio" id="excellent" name="rating"  value="Excellent">
+        <label for="excellent">Excellent</label>
+        
+        <input type="radio" id="good" name="rating" value="Good">
+        <label for="good">Good</label>
+        <br><br> 
+
+        <!--Category(Dropdowm Select)-->
+        <label for="category">Feedback Category:</label>
+        <select id="category" name="category" required>
+            <option value="">--Select--</option>
+            <option value="design">Design</option>
+            <option value="content">Content</option>
+            <option value="usability">Usability</option>
+        </select>
+        <br><br>
+
+        <!--Comments (Texttarea)-->
+        <label for="comments">Your Comments:</label><br>
+        <textarea id="comments" name="comments" rows="5" cols="40" placeholder="write your feedback here..."></textarea>
+        <br><br>
+
+        <!-- Submit Button-->
+        <input type="submit" value="Submit Feedback">
+        <input type="reset" value="Clear Form">
+    </form>
+
+</body>
+</html>       

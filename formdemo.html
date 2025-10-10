@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>registration form></title>
+</head>
+<body>
+    <h2>user registration form</h2>
+    <form action="/submit" method="post"></form>
+        <!--Name-->
+        <label for="username">Name:</label>
+        <input type="text" id="usename" name="username"
+placeholder="enter your name"required>
+    <br><br>
+    <!--Email-->
+    <label for="email">Email:</label>
+    <input type="email" id="email" name="email"
+placeholder="example@email.com"required>
+    <br><br>
+    <!--Password-->
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" minlength="6" required>
+    <br><br>
+    <!--Gender-->
+    <label>Gender</label>
+    <input type="radio" id="male" name="gender" value="male" checked>
+    <label for="male">Male</label>
+
+    <input type="radio"id="female" name="gender" value="female">
+    <label for="female">female</label>
+    <br><br>
+
+    <!--Skills (Checkbox)-->
+    <label>Skills</label>
+    <input type="checkbox" id="html" name="skills" value="HTML">
+    <label for="html">HTML</label>
+    <input type="checkbox" id="css" name="skills" value="CSS">
+    <label for="css">CSS</label>
+
+    <input type="checkbox" id="js" name="skills" value="JavaScript">
+    <label for="js">JavaScript</label>
+    <br><br>
+
+    <!--Upload File-->
+    <label for="resume">Upload Resume:</label>
+    <input type="file" id="resume" name="resume" accept=".pdf,.docx">
+    <br><br>
+
+    <!--Submit Button-->
+    <input type="submit" value="Register">
+    <input type="reset" value="Clear">
+</form>
+
+    
+</body>
+</html>

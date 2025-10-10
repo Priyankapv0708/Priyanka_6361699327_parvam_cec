@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Catch the Food</title>
+  <style>
+    :root{
+      --bg:#f6fbf8; --panel:#fff; --accent:#ff6b35; --muted:#6b6b6b;
+      --width:900px; --height:600px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(180deg,#e7fff1,#f6fbf8);font-family:Inter,system-ui,Arial}
+    .wrap{width:min(96vw,var(--width));max-width:100%;background:var(--panel);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,0.08);overflow:hidden}
+    header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{margin:0;font-size:18px}
+    .info{color:var(--muted);font-size:14px}
+    .game-area{position:relative;background:linear-gradient(180deg,#fff,#f3fff7);height:calc(min(80vh, var(--height)));touch-action:none;overflow:hidden}
+    canvas{display:block;width:100%;height:100%}
+    .controls{display:flex;gap:10px;align-items:center;padding:12px 18px;border-top:1px solid #f0f0f0}
+    .btn{background:var(--accent);color:#fff;padding:10px 14px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
+    .stat{margin-left:auto;font-weight:700}
+    /* simple on-screen buttons for touch */
+    .touch-controls{position:absolute;left:12px;bottom:12px;display:flex;gap:8px}
+    .touch-controls button{width:56px;height:56px;border-radius:12px;border:0;background:rgba(0,0,0,0.06);font-size:20px;cursor:pointer}
+    .pause-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.28);color:#fff;font-size:22px;display:none}
+    .hud{position:absolute;right:12px;top:12px;background:rgba(255,255,255,0.7);padding:8px 10px;border-radius:10px;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Catch the Food</h1>
+      <div class="info">Move the basket, catch falling food. Arrow keys or touch. Press Space to pause.</div>
+    </header>
+
+    <div class="game-area" id="gameArea" role="application" aria-label="Catch the Food game">
+      <canvas id="gameCanvas"></canvas>
+      <div class="hud" id="hud">Score: 0 • Lives: 3</div>
+      <div class="touch-controls" id="touchControls" aria-hidden="true">
+        <button id="leftBtn" aria-label="Move left">◀</button>
+        <button id="rightBtn" aria-label="Move right">▶</button>
+      </div>
+      <div class="pause-overlay" id="pauseOverlay">Paused</div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="startBtn">Start Game</button>
+      <button class="btn" id="restartBtn" style="background:#444">Restart</button>
+      <div class="stat" id="bestStat">Best: 0</div>
+    </div>
+  </div>
+
+  <script>
+    // Canvas setup
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const area = document.getElementById('gameArea');
+    const hud = document.getElementById('hud');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+    const touchControls = document.getElementById('touchControls');
+
+    // Game variables
+    let W = 900, H = 600;
+    let scale = 1;
+    let lastTime = 0;
+    let running = false;
+    let paused = false;
+
+    // Player (basket)
+    const player = { x:0, y:0, w:120, h:28, speed:520 };
+
+    // Food items
+    const foods = [];
+    const foodTypes = [
+      { color: '#ff6b35', score: 10 },
+      { color: '#ffd166', score: 8 },
+      { color: '#8bd3c7', score: 12 },
+      { color: '#ff9aa2', score: 15 }
+    ];
+
+    let spawnTimer = 0;
+    let spawnInterval = 900; // ms
+    let score = 0;
+    let lives = 3;
+    let best = Number(localStorage.getItem('catch_best') || 0);
+
+    // Resize canvas to CSS size while keeping internal resolution high
+    function resize() {
+      const rect = area.getBoundingClientRect();
+      const cssW = Math.max(320, Math.min(rect.width, 1200));
+      const cssH = Math.max(300, Math.min(rect.height, 800));
+      scale = devicePixelRatio || 1;
+      canvas.width = Math.floor(cssW * scale);
+      canvas.height = Math.floor(cssH * scale);
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      W = canvas.width; H = canvas.height;
+      player.y = H - 60;
+      if(!running) drawBackground();
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Utility
+    function rand(min, max){ return Math.random()*(max-min)+min; }
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // Draw background and UI
+    function drawBackground() {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,W,H);
+      // subtle ground
+      ctx.fillStyle = '#f1f6f3';
+      ctx.fillRect(0, H - 48*scale, W, 48*scale);
+      // basket base line
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 2*scale;
+      ctx.beginPath(); ctx.moveTo(0, player.y + player.h*scale + 8); ctx.lineTo(W, player.y + player.h*scale + 8); ctx.stroke();
+    }
+
+    // Draw player (basket)
+    function drawPlayer() {
+      ctx.fillStyle = '#6b4f3b';
+      const px = player.x*scale;
+      const py = player.y - player.h*scale/2;
+      const pw = player.w*scale;
+      const ph = player.h*scale;
+      // basket body
+      ctx.fillRect(px, py, pw, ph);
+      // rim
+      ctx.fillStyle = '#4a2f22';
+      ctx.fillRect(px + 6*scale, py - 8*scale, pw - 12*scale, 8*scale);
+    }
+
+    // Draw a food
+    function drawFood(f) {
+      const x = f.x*scale, y = f.y*scale, r = f.r*scale;
+      ctx.fillStyle = f.color;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.beginPath(); ctx.arc(x - r*0.35, y - r*0.35, r*0.35, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Spawn food
+    function spawnFood() {
+      const t = foodTypes[Math.floor(Math.random()*foodTypes.length)];
+      const r = rand(12, 22);
+      foods.push({
+        x: rand(r, (canvas.width/scale)-r),
+        y: -r,
+        vy: rand(140, 320),
+        r: r,
+        color: t.color,
+        score: t.score,
+        wobble: rand(0.9, 1.1),
+      });
+    }
+
+    // Update loop
+    function update(dt) {
+      if(paused || !running) return;
+      spawnTimer += dt;
+      if(spawnTimer >= spawnInterval) {
+        spawnTimer = 0;
+        spawnFood();
+        // gradually increase difficulty
+        if(spawnInterval > 420) spawnInterval -= 12;
+      }
+
+      // move foods
+      for(let i = foods.length-1; i>=0; i--) {
+        const f = foods[i];
+        // wobble horizontal
+        f.x += Math.sin((performance.now()/600)*f.wobble + i)*0.6 * dt/16;
+        f.y += f.vy * dt/1000;
+        // collision with basket
+        const left = player.x, right = player.x + player.w, top = player.y - player.h, bottom = player.y + player.h;
+        if(f.y + f.r >= player.y && f.x > left && f.x < right) {
+          // caught
+          score += f.score;
+          foods.splice(i,1);
+          updateHUD();
+          continue;
+        }
+        // missed
+        if(f.y - f.r > H/scale + 40) {
+          foods.splice(i,1);
+          lives--;
+          updateHUD();
+          if(lives <= 0) endGame();
+        }
+      }
+
+      // player movement
+      if(input.left) player.x -= player.speed * dt/1000;
+      if(input.right) player.x += player.speed * dt/1000;
+      player.x = clamp(player.x, 6, (canvas.width/scale) - player.w - 6);
+    }
+
+    // Render loop
+    function render() {
+      drawBackground();
+      // draw foods
+      for(const f of foods) drawFood(f);
+      // draw player
+      drawPlayer();
+    }
+
+    // HUD
+    function updateHUD() {
+      hud.textContent = `Score: ${score} • Lives: ${lives}`;
+      document.getElementById('bestStat').textContent = `Best: ${best}`;
+    }
+
+    // Game control
+    function startGame() {
+      if(running) return;
+      running = true;
+      paused = false;
+      score = 0; lives = 3; foods.length = 0; spawnInterval = 900; spawnTimer = 0;
+      player.w = 120;
+      player.x = (canvas.width/scale - player.w)/2;
+      updateHUD();
+      pauseOverlay.style.display = 'none';
+      lastTime = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      running = false;
+      paused = false;
+      if(score > best) { best = score; localStorage.setItem('catch_best', best); }
+      updateHUD();
+      setTimeout(()=> {
+        alert(`Game over! Score: ${score}\nBest: ${best}`);
+      }, 50);
+    }
+
+    function togglePause() {
+      if(!running) return;
+      paused = !paused;
+      pauseOverlay.style.display = paused ? 'flex' : 'none';
+    }
+
+    // Main loop
+    function loop(t) {
+      const dt = Math.min(40, t - lastTime);
+      lastTime = t;
+      update(dt);
+      render();
+      if(running) requestAnimationFrame(loop);
+    }
+
+    // Input handling
+    const input = { left:false, right:false };
+    window.addEventListener('keydown', (e) => {
+      if(e.code === 'ArrowLeft') input.left = true;
+      if(e.code === 'ArrowRight') input.right = true;
+      if(e.code === 'Space') togglePause();
+    });
+    window.addEventListener('keyup', (e) => {
+      if(e.code === 'ArrowLeft') input.left = false;
+      if(e.code === 'ArrowRight') input.right = false;
+    });
+
+    // Touch / on-screen buttons
+    function enableTouch() {
+      touchControls.style.display = 'flex';
+      touchControls.setAttribute('aria-hidden','false');
+      leftBtn.addEventListener('touchstart', () => input.left = true);
+      leftBtn.addEventListener('touchend', () => input.left = false);
+      rightBtn.addEventListener('touchstart', () => input.right = true);
+      rightBtn.addEventListener('touchend', () => input.right = false);
+      // simple drag to move
+      let dragging = false;
+      area.addEventListener('pointerdown', (e)=> {
+        dragging = true;
+        const rect = canvas.getBoundingClientRect();
+        const px = (e.clientX - rect.left);
+        const targetX = px / (rect.width) * (canvas.width/scale) - player.w/2;
+        player.x = clamp(targetX, 6, (canvas.width/scale) - player.w - 6);
+      });
+      area.addEventListener('pointermove', (e)=> {
+        if(!dragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const px = (e.clientX - rect.left);
+        const targetX = px / (rect.width) * (canvas.width/scale) - player.w/2;
+        player.x = clamp(targetX, 6, (canvas.width/scale) - player.w - 6);
+      });
+      window.addEventListener('pointerup', ()=> dragging = false);
+    }
+
+    // Buttons
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', () => { running = false; startGame(); });
+    document.getElementById('viewMenuBtn')?.addEventListener('click', ()=> {}); // noop if present
+
+    // Keyboard fallback focus
+    document.addEventListener('visibilitychange', ()=> { if(document.hidden) paused = true; });
+
+    // initialize
+    resize();
+    updateHUD();
+    // enable touch controls on small screens
+    if(('ontouchstart' in window) || navigator.maxTouchPoints) enableTouch();
+
+    // draw initial frame
+    drawBackground();
+    render();
+  </script>
+</body>
+</html>
